@@ -1,0 +1,16 @@
+[
+    {
+        "first_name": "علی",
+        "last_name": "امامی",
+        "email": "admin@gmail.com",
+        "password": "1234",
+        "role": "admin"
+    },
+    {
+        "first_name": "غلی",
+        "last_name": "امامی",
+        "email": "ali@gmail.com",
+        "password": "1234",
+        "role": "guest"
+    }
+]
