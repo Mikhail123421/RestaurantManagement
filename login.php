@@ -28,17 +28,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($user) {
             if (password_verify($password, $user['PASSWORD'])) {
-                // Set session data for the logged-in user
+                // تنظیم کوکی (ماندگاری برای 30 روز)
+                setcookie('user_email', $user['EMAIL'], time() + (30 * 24 * 60 * 60), "/"); // مسیر "/" برای دسترسی در کل سایت
+                setcookie('user_id', $user['ID'], time() + (30 * 24 * 60 * 60), "/");
+            
+                // تنظیم سشن
                 $_SESSION['user'] = [
                     'email' => $user['EMAIL'],
                     'role' => $user['ROLE'],
                     'user_id' => $user['ID']
                 ];
-
-                // Redirect based on the role
+            
+                // انتقال به داشبورد
                 header('Location: dashborad.php');
                 exit;
-            } else {
+            }
+             else {
                 $errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
             }
         } else {
