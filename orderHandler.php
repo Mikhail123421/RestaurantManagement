@@ -1,40 +1,53 @@
 <?php
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $food = $_POST['food'];
-    $quantity = $_POST['quantity'];
-    $price = $_POST['price'];
+include("dbConection.php");
 
-    if (empty($food) || empty($quantity)) {
-        http_response_code(400); // Bad Request
-        echo "اطلاعات وارد شده ناقص است.";
-        exit;
-    }
+if (isset($_POST['orders']) && isset($_POST['userId'])) {
 
-    $orderData = [
-        'food' => $food,
-        'quantity' => (int)$quantity,
-        'price' => (float)$price,
-    ];
+    // Decode the JSON-encoded orders from the client side
+    $orders = json_decode($_POST['orders'], true);
+    $userId = $_POST['userId']; // Ensure the userId is passed correctly
 
-    $filePath = 'orders.json';
+    // Debug: Log received data for validation
+    error_log("Received Orders: " . print_r($orders, true));
+    error_log("User ID: " . $userId);
 
-    // بررسی وجود فایل و خواندن داده‌ها
-    if (file_exists($filePath)) {
-        $existingOrders = json_decode(file_get_contents($filePath), true);
+    // Check if orders is an array and contains data
+    if (is_array($orders) && !empty($orders)) {
+        try {
+            $pdo->beginTransaction();
+
+            // Prepare the query for inserting orders
+            $query = "INSERT INTO orders (USER_ID, FOOD_ID, FOOD_NAME, QUANTITY, PRICE) VALUES (:user_id, :food_id, :food_name, :quantity, :price)";
+            $stmt = $pdo->prepare($query);
+
+            foreach ($orders as $order) {
+                // Ensure the order contains the necessary data
+                if (isset($order['foodID'], $order['foodName'], $order['quantity'], $order['price'], $order['userId'])) {
+                    // Insert order into the database
+                    $stmt->execute([
+                        ':user_id' => $order['userId'],          // User ID
+                        ':food_id' => $order['foodID'],          // Food ID
+                        ':food_name' => $order['foodName'],      // Food Name
+                        ':quantity' => $order['quantity'],       // Quantity
+                        ':price' => $order['price']              // Price
+                    ]);
+                } else {
+                    throw new Exception('Missing data in order.');
+                }
+            }
+
+            $pdo->commit();  // Commit the transaction
+
+            echo json_encode(['message' => 'Orders added successfully.']);
+        } catch (Exception $e) {
+            // Rollback the transaction on error
+            $pdo->rollBack();
+            echo json_encode(['message' => 'Error: ' . $e->getMessage()]);
+        }
     } else {
-        $existingOrders = [];
+        echo json_encode(['message' => 'Invalid or empty orders data.']);
     }
-
-    // افزودن سفارش جدید
-    $existingOrders[] = $orderData;
-
-    // ذخیره سفارش‌ها در فایل
-    if (file_put_contents($filePath, json_encode($existingOrders, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
-        http_response_code(200); // OK
-        echo "سفارش با موفقیت ثبت شد.";
-    } else {
-        http_response_code(500); // Internal Server Error
-        echo "ذخیره سفارش با خطا مواجه شد.";
-    }
+} else {
+    echo json_encode(['message' => 'Missing orders or userId']);
 }
 ?>

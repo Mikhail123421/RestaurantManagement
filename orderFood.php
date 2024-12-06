@@ -1,3 +1,22 @@
+<?php
+session_start(); 
+
+
+
+if (isset($_SESSION['user'])) {
+    echo " <a href='logout.php' class='btn btn-logout'>
+            خروج
+        </a>";
+    $userId = $_SESSION['user']['user_id'];
+} 
+
+
+
+else {
+    $userId = null; 
+}
+?>
+
 <!DOCTYPE html>
 <html lang="fa">
 
@@ -7,47 +26,31 @@
     <title>سفارش غذا</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        form {
-            width: 300px;
-            margin: 20px auto;
-            display: flex;
-            flex-direction: column;
+        body
+        {
+            text-align: center;
         }
-
-        input,
-        button,
-        select {
-            margin: 10px 0;
-            padding: 8px;
-        }
-
-        table {
-            margin: 20px auto;
+        #orderTable {
+            width: 100%;
             border-collapse: collapse;
-            direction: rtl;
         }
 
-        th,
-        td {
-            border: 1px solid #ccc;
+        #orderTable th,
+        #orderTable td {
             padding: 8px;
             text-align: center;
-        }
-
-        .message {
-            text-align: center;
-            color: green;
+            border: 1px solid #ddd;
         }
     </style>
 </head>
 
 <body>
-        <!-- Logout Button -->
-<a href="logout.php" id="logoutBtn">
-    <button type="button">Logout</button>
-</a>
     <h1 style="text-align: center;">سفارش غذا</h1>
-    <form id="orderForm" action="orderHandler.php" method="POST">
+
+    <!-- Add the USER_ID to a hidden input field to use on the client side -->
+    <input type="hidden" id="userId" value="<?php echo $userId; ?>">
+
+    <form id="orderForm">
         <label for="food">انتخاب غذا:</label>
         <select id="food" name="food" required>
             <!-- لیست غذاها به صورت داینامیک بارگذاری می‌شود -->
@@ -65,6 +68,7 @@
                 <th>نام غذا</th>
                 <th>تعداد</th>
                 <th>قیمت</th>
+                <th>عملیات</th>
             </tr>
         </thead>
         <tbody>
@@ -72,18 +76,26 @@
         </tbody>
     </table>
 
+    <button id="finalizeOrderBtn">ثبت نهایی سفارش</button>
+
     <script>
-        // بارگذاری منو به لیست انتخاب غذا
+        let orders = []; 
+        const userId = $('#userId').val();
+
+        //1 Load food menu from the server
         function loadMenu() {
             $.ajax({
-                url: 'foodList.json',
-                method: 'GET',
+                url: 'foodHandler.php',
+                method: 'POST',
+                data: {
+                    action: 'loadFood'
+                },
                 dataType: 'json',
                 success: function(menuItems) {
                     const foodDropdown = $('#food');
-                    foodDropdown.empty();
+                    foodDropdown.empty(); // Clear existing options
                     menuItems.forEach(function(item) {
-                        foodDropdown.append(`<option value="${item.name}" data-price="${item.price}">${item.name} - ${item.price} تومان</option>`);
+                        foodDropdown.append(`<option value="${item.NAME}" data-price="${item.PRICE}">${item.NAME} - ${item.PRICE} تومان</option>`);
                     });
                 },
                 error: function() {
@@ -92,7 +104,88 @@
             });
         }
 
-        function calculateTotal() {
+        // Load orders into the table
+        function loadOrders() {
+            const orderTableBody = $('#orderTable tbody');
+            orderTableBody.empty(); // Clear existing rows
+
+            orders.forEach(function(order, index) {
+                orderTableBody.append(`
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${order.food}</td>
+                        <td>${order.quantity}</td>
+                        <td>${order.price}</td>
+                        <td><button class="removeOrderBtn" data-index="${index}">حذف</button></td>
+                    </tr>
+                `);
+            });
+        }
+
+  
+
+        $('#orderForm').on('submit', function(event) {
+            event.preventDefault();
+            const food = $('#food').val();
+            const foodName = $('#food option:selected').text();
+            const quantity = $('#quantity').val();
+            const price = $('#price').val();
+            const userId = $('#userId').val(); // Ensure userId is retrieved properly
+
+            // Validate fields before adding
+            if (!food || quantity <= 0 || !price || !userId) {
+                alert('لطفاً تمام فیلدها را پر کنید.');
+                return;
+            }
+
+            // Create an order object to push to the orders array
+            const order = {
+                foodID: food, // Food ID
+                foodName: foodName, // Food Name
+                quantity: quantity, // Quantity
+                price: price, // Price
+                userId: userId // User ID
+            };
+
+            // Add the order to the orders array
+            orders.push(order);
+            loadOrders(); // Update the orders table view
+        });
+
+
+
+        // Finalize the order and send it to the server
+        $('#finalizeOrderBtn').on('click', function() {
+            if (orders.length === 0) {
+                alert('هیچ سفارشی برای ارسال وجود ندارد.');
+                return;
+            }
+
+            // Send orders to the server
+            $.ajax({
+                url: 'orderHandler.php',
+                method: 'POST',
+                data: {
+                    action: 'addOrder',
+                    orders: JSON.stringify(orders),
+                    userId: userId // Send USER_ID to the server
+                },
+                success: function(response) {
+                    alert('سفارش‌ها با موفقیت ثبت شد.');
+                    orders = []; 
+                    loadOrders(); 
+                },
+                error: function() {
+                    alert('ثبت سفارش‌ها با خطا مواجه شد.');
+                }
+            });
+        });
+
+
+
+
+            // Calculate the total price based on the selected food and quantity
+            function calculateTotal() {
             const selectedFood = $('#food').find(':selected');
             const pricePerUnit = selectedFood.data('price');
             const quantity = parseInt($('#quantity').val()) || 0;
@@ -100,97 +193,17 @@
             $('#price').val(totalPrice || 0);
         }
 
-
-   
-        // بارگذاری سفارش‌ها به جدول
-        function loadOrders() {
-            $.ajax({
-                url: 'orders.json', // مسیر فایل سفارش‌ها
-                method: 'GET',
-                dataType: 'json',
-                success: function(orders) {
-                    const orderTableBody = $('#orderTable tbody');
-                    orderTableBody.empty();
-                    orders.forEach(function(order, index) {
-                        orderTableBody.append(`
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>${order.food}</td>
-                                <td>${order.quantity}</td>
-                                <td>${order.price}</td>
-                            </tr>
-                        `);
-                    });
-                },
-                error: function() {
-                    alert('بارگذاری سفارش‌ها با خطا مواجه شد.');
-                }
-            });
-        }
-
-        //جمع سفارش ها
-        function sumOrderPrice() {
-
-        }
-
-
-        function calculateTotal() {
-            const selectedFood = $('#food').find(':selected');
-            const pricePerUnit = selectedFood.data('price'); 
-            const quantity = parseInt($('#quantity').val()) || 0; 
-            const totalPrice = pricePerUnit * quantity;
-            $('#price').val(totalPrice || 0); 
-        }
-
-        // نمایش پیام بعد از ثبت موفق سفارش
-        $('#orderForm').on('submit', function(event) {
-            event.preventDefault(); // جلوگیری از ارسال فرم
-            const formData = $(this).serialize();
-            $.ajax({
-                url: 'orderHandler.php',
-                method: 'POST',
-                data: formData,
-                success: function(response) {
-                    alert('سفارش شما با موفقیت ثبت شد.');
-                    loadOrders(); // به‌روزرسانی لیست سفارش‌ها
-                },
-                error: function() {
-                    alert('ثبت سفارش با خطا مواجه شد.');
-                }
-            });
+      // Remove an order from the table
+      $(document).on('click', '.removeOrderBtn', function() {
+            const index = $(this).data('index');
+            orders.splice(index, 1); // Remove from the orders array
+            loadOrders(); // Update the table
         });
 
-
-        // مقداردهی اولیه
+        // Initialize the page
         $(document).ready(function() {
-            loadMenu();
-            loadOrders();
-        });
-
-        $('#food, #quantity').on('change input', calculateTotal);
-
-
-        $('#orderForm').on('submit', function(event) {
-            event.preventDefault();
-            const formData = $(this).serialize();
-            $.ajax({
-                url: 'orderHandler.php',
-                method: 'POST',
-                data: formData,
-                success: function(response) {
-                    alert('سفارش شما با موفقیت ثبت شد.');
-                    loadOrders();
-                },
-                error: function() {
-                    alert('ثبت سفارش با خطا مواجه شد.');
-                }
-            });
-        });
-
-
-        $(document).ready(function() {
-            loadMenu();
-            loadOrders();
+            loadMenu(); // Load the food menu
+            $('#food, #quantity').on('change input', calculateTotal); // Calculate total price
         });
     </script>
 </body>

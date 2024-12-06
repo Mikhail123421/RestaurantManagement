@@ -8,5 +8,10 @@
         "food": "آش رشته",
         "quantity": 2,
         "price": 26000
+    },
+    {
+        "food": "ته‌چین",
+        "quantity": 2,
+        "price": 32000
     }
 ]

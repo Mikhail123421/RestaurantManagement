@@ -1,3 +1,16 @@
+<?php
+session_start(); // شروع سشن
+?>
+
+<?php if (isset($_SESSION['user'])): ?>
+    <!-- نمایش دکمه خروج اگر کاربر وارد شده باشد -->
+    <a href="logout.php">
+        <button type="button">خروج</button>
+    </a>
+<?php endif; ?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -39,11 +52,6 @@
 </head>
 
 <body>
-    <!-- Logout Button -->
-<a href="logout.php" id="logoutBtn">
-    <button type="button">Logout</button>
-</a>
-
 
     <form id="foodForm">
         <input type="text" id="name" name="name" placeholder="نام" required>
@@ -81,35 +89,39 @@
         loadMenu();
 
         function loadMenu() {
-            $.ajax({
-                url: 'foodList.json', // Path to the JSON file
-                method: 'GET',
-                dataType: 'json', // Expect JSON response
-                success: function(menuItems) {
-                    const tableBody = $('#menuTable tbody'); // Target table body
-                    tableBody.empty(); // Clear existing rows
+    $.ajax({
+        url: 'foodHandler.php',
+        method: 'POST',
+        dataType: 'json', 
+        data: {
+            action: 'loadFood' 
+        },
+        success: function(menuItems) {
+            const tableBody = $('#menuTable tbody'); 
+            tableBody.empty(); 
 
-                    // Loop through the menu items and append rows
-                    menuItems.forEach(function(item) {
-                        tableBody.append(`
+            // Loop through the menu items and append rows
+            menuItems.forEach(function(item) {
+                tableBody.append(`
                     <tr>
-                        <td id="food-id-${item.id}">${item.id}</td> <!-- Add ID to the first column -->
-                        <td id="food-name-${item.id}" class="food-name">${item.name}</td> <!-- Add name to the second column -->
-                        <td id="food-price-${item.id}" class="food-price">${item.price}</td> <!-- Add price to the third column -->
+                        <td id="food-id-${item.id}">${item.ID}</td> <!-- Food ID -->
+                        <td id="food-name-${item.id}" class="food-name">${item.NAME}</td> <!-- Food Name -->
+                        <td id="food-price-${item.id}" class="food-price">${item.PRICE}</td> <!-- Food Price -->
                         <td>
-                            <button onclick="deleteFood(${item.id})">حذف</button>
-                            <button onclick="editFood(${item.id})">ویرایش</button>
+                            <button onclick="deleteFood(${item.ID})">حذف</button>
+                            <button onclick="editFood(${item.ID})">ویرایش</button>
                         </td>
                     </tr>
                 `);
-                    });
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading menu:', error); // Log error
-                    alert('Failed to load menu. Please try again.');
-                }
             });
+        },
+        error: function(xhr) {
+            console.error('Error loading menu:', xhr.responseJSON?.message || xhr.statusText);
+            alert(xhr.responseJSON?.message || 'Failed to load menu. Please try again.');
         }
+    });
+}
+
 
 
         function deleteFood(id) {

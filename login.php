@@ -1,6 +1,15 @@
 <?php
 session_start();
 
+// If the user is already logged in, redirect to the dashboard
+if (isset($_SESSION['user'])) {
+    header('Location: dashborad.php');
+    exit;
+}
+
+
+include("dbConection.php");
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = @$_POST['email'];
     $password = @$_POST['password'];
@@ -8,34 +17,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate the fields
     if (empty($email) || empty($password)) {
         $errorMessage = "لطفا فیلد ها را تکمیل کنید";
-    } else {
-        $jsonData = file_get_contents('users.json');
-        $users = json_decode($jsonData, true);
+    }
+    
+    else {
+        // Prepare and execute the query to find the user by email
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email");
+        $stmt->execute(['email' => $email]);
 
-        $userFound = false; // Track if the user is found
-
-        foreach ($users as $user) {
-            if ($user['email'] === $email && $user['password'] === $password) {
-                $userFound = true;
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user) {
+            if (password_verify($password, $user['PASSWORD'])) {
                 // Set session data for the logged-in user
                 $_SESSION['user'] = [
-                    'email' => $user['email'],
-                    'role' => $user['role']
+                    'email' => $user['EMAIL'],
+                    'role' => $user['ROLE'],
+                    'user_id' => $user['ID']
                 ];
 
                 // Redirect based on the role
-                if ($user['role'] === 'admin') {
-                    header('Location: foodlist.php');
-                    exit;  
-                } elseif ($user['role'] === 'guest') {
-                    header('Location: orderFood.php');
-                    exit; 
-                }
+                header('Location: dashborad.php');
+                exit;
+            } else {
+                $errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
             }
-        }
-
-        // If user is not found, show error
-        if (!$userFound) {
+        } else {
             $errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
         }
     }
@@ -70,20 +76,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 15px;
             box-shadow: none;
         }
+
+        button {
+            width: 100px;
+            height: 25px;
+            border-radius: 8px;
+            margin-top: 15px;
+            box-shadow: none;
+        }
+
+        form a {
+            text-align: center;
+            display: block;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <h1 style="text-align: center;">ورود</h1>
+    <div style="text-align: center;">
 
-    <?php if (isset($errorMessage)): ?>
-        <p class="error"><?php echo $errorMessage; ?></p>
-    <?php endif; ?>
+        <?php if (isset($errorMessage)): ?>
+            <div style="color: red;"><?php echo $errorMessage; ?></div>
+        <?php endif; ?>
 
-    <form method="POST" action="login.php">
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">ورود</button>
-        <button><a href="register.php">ثبت نام</a></button>
-    </form>
+        <form method="POST" action="login.php">
+            <input type="email" name="email" placeholder="ایمیل" required>
+            <input type="password" name="password" placeholder="رمز عبور" required>
+            <button type="submit">ورود</button>
+        </form>
+
+        <a href="register.php">
+            <button>ثبت نام</button>
+        </a>
+    </div>
+
 </body>
 </html>
