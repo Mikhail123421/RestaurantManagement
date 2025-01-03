@@ -5,19 +5,18 @@ session_start(); // شروع سشن
 <?php if (isset($_SESSION['user'])): ?>
     <!-- نمایش دکمه خروج اگر کاربر وارد شده باشد -->
     <a href="logout.php">
-        <button type="button">خروج</button>
+        <button type="button" class="btn btn-logout">خروج</button>
     </a>
 <?php endif; ?>
 
 
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="./lib/jquery-3.6.0.min.js"></script>
     <style>
         form {
             width: 300px;
@@ -48,6 +47,44 @@ session_start(); // شروع سشن
             text-align: center;
             color: green;
         }
+
+        .btn-logout {
+            background-color: #f44336;
+            color: white;
+            display: flex;
+          
+        }
+
+        a{
+            text-decoration: none;
+        }
+
+        .btn-logout:hover {
+            background-color: #e53935;
+        }
+
+        form
+        {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        form input
+        {
+            width: 400px;
+            height: 30px;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        form select
+        {
+            width: 400px;
+            height: 30px;
+            border-radius: 8px;
+            box-shadow: none;
+        }
     </style>
 </head>
 
@@ -69,10 +106,9 @@ session_start(); // شروع سشن
             </tr>
         </thead>
         <tbody>
-            <!-- Food items will be loaded here -->
+            <!-- آیتم‌های غذا در اینجا بارگذاری خواهند شد -->
         </tbody>
     </table>
-
 
     <form id="editFoodForm" style="display: none;">
         <h3>ویرایش غذا</h3>
@@ -82,50 +118,46 @@ session_start(); // شروع سشن
         <button type="submit">ویرایش</button>
     </form>
 
-
-
     <script>
-        // Load the menu initially
+        // بارگذاری منو در ابتدا
         loadMenu();
 
         function loadMenu() {
-    $.ajax({
-        url: 'foodHandler.php',
-        method: 'POST',
-        dataType: 'json', 
-        data: {
-            action: 'loadFood' 
-        },
-        success: function(menuItems) {
-            const tableBody = $('#menuTable tbody'); 
-            tableBody.empty(); 
+            $.ajax({
+                url: 'foodHandler.php',
+                method: 'POST',
+                dataType: 'json', 
+                data: {
+                    action: 'loadFood' 
+                },
+                success: function(menuItems) {
+                    const tableBody = $('#menuTable tbody'); 
+                    tableBody.empty(); 
 
-            // Loop through the menu items and append rows
-            menuItems.forEach(function(item) {
-                tableBody.append(`
-                    <tr>
-                        <td id="food-id-${item.id}">${item.ID}</td> <!-- Food ID -->
-                        <td id="food-name-${item.id}" class="food-name">${item.NAME}</td> <!-- Food Name -->
-                        <td id="food-price-${item.id}" class="food-price">${item.PRICE}</td> <!-- Food Price -->
-                        <td>
-                            <button onclick="deleteFood(${item.ID})">حذف</button>
-                            <button onclick="editFood(${item.ID})">ویرایش</button>
-                        </td>
-                    </tr>
-                `);
+                    // عبور از روی آیتم‌های منو و اضافه کردن سطرها
+                    menuItems.forEach(function(item) {
+                        tableBody.append(`
+                            <tr>
+                                <td id="food-id-${item.id}">${item.ID}</td> <!-- شناسه غذا -->
+                                <td id="food-name-${item.id}" class="food-name">${item.NAME}</td> <!-- نام غذا -->
+                                <td id="food-price-${item.id}" class="food-price">${item.PRICE}</td> <!-- قیمت غذا -->
+                                <td>
+                                    <button onclick="deleteFood(${item.ID})">حذف</button>
+                                    <button onclick="editFood(${item.ID})">ویرایش</button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                },
+                error: function(xhr) {
+                    console.error('خطا در بارگذاری منو:', xhr.responseJSON?.message || xhr.statusText);
+                    alert(xhr.responseJSON?.message || 'خطا در بارگذاری منو. لطفا دوباره تلاش کنید.');
+                }
             });
-        },
-        error: function(xhr) {
-            console.error('Error loading menu:', xhr.responseJSON?.message || xhr.statusText);
-            alert(xhr.responseJSON?.message || 'Failed to load menu. Please try again.');
         }
-    });
-}
-
-
 
         function deleteFood(id) {
-            if (confirm("آیا غذا حذف شود ?")) {
+            if (confirm("آیا از حذف این غذا اطمینان دارید؟")) {
                 $.ajax({
                     url: 'foodHandler.php',
                     method: 'POST',
@@ -135,19 +167,17 @@ session_start(); // شروع سشن
                         id: id
                     },
                     success: function(response) {
-                        console.log('Delete successful:', response); // Debug log
-                        alert(response.message);
-                        loadMenu(); // Reload the menu
+                        console.log('حذف موفقیت‌آمیز:', response); // لاگ برای اشکال‌زدایی
+                        alert(response.message); // پیام موفقیت
+                        loadMenu(); // بارگذاری مجدد منو
                     },
                     error: function(xhr) {
-                        console.error('Delete failed:', xhr.responseJSON?.message || xhr.statusText);
-                        alert(xhr.responseJSON?.message || 'Failed to delete food.');
+                        console.error('حذف ناموفق:', xhr.responseJSON?.message || xhr.statusText);
+                        alert(xhr.responseJSON?.message || 'خطا در حذف غذا.');
                     }
                 });
             }
         }
-
-
 
         function addFood(name, price) {
             $.ajax({
@@ -158,50 +188,45 @@ session_start(); // شروع سشن
                     action: 'add',
                     name: name,
                     price: price
-                }, // Include action parameter
+                },
                 success: function(response) {
-                    alert(response.message); // Show success message
-                    loadMenu(); // Reload the menu
-                    $('#foodForm')[0].reset(); // Reset the form
+                    alert(response.message); // نمایش پیام موفقیت
+                    loadMenu(); // بارگذاری مجدد منو
+                    $('#foodForm')[0].reset(); // بازنشانی فرم
                 },
                 error: function(xhr) {
-                    alert(xhr.responseJSON.message || 'Failed to add food.');
+                    alert(xhr.responseJSON.message || 'خطا در افزودن غذا.');
                 }
             });
         }
 
-    function editFood(id) {
-    const name = $(`#food-name-${id}`).text();  // Get the food name using the id
-    const price = $(`#food-price-${id}`).text(); // Get the food price using the id
+        function editFood(id) {
+            const name = $(`#food-name-${id}`).text();  // دریافت نام غذا با استفاده از شناسه
+            const price = $(`#food-price-${id}`).text(); // دریافت قیمت غذا با استفاده از شناسه
 
-    $('#editName').val(name);
-    $('#editPrice').val(price);
-    $('#editId').val(id); // Set the hidden input with the food id
+            $('#editName').val(name);
+            $('#editPrice').val(price);
+            $('#editId').val(id); // تنظیم شناسه غذا در فیلد مخفی
 
-    $('#editFoodForm').show(); // Make the edit form visible
+            $('#editFoodForm').show(); // نمایش فرم ویرایش
 
-    $('#foodForm').hide();
-}
-
-
-
-        function hideEditForm() {
-            $('#editFoodForm').hide(); // Hide the form
-            $('#editFoodForm')[0].reset(); // Reset the form fields
+            $('#foodForm').hide();
         }
 
-
-
+        function hideEditForm() {
+            $('#editFoodForm').hide(); // مخفی کردن فرم
+            $('#editFoodForm')[0].reset(); // بازنشانی فیلدهای فرم
+        }
 
         $('#foodForm').on('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission
+            e.preventDefault(); // جلوگیری از ارسال فرم به صورت پیش‌فرض
             const name = $('#name').val();
             const price = $('#price').val();
-            addFood(name, price); // Call the `addFood` function
+            addFood(name, price); // فراخوانی تابع افزودن غذا
         });
 
         $('#editFoodForm').on('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission
+            e.preventDefault(); // جلوگیری از ارسال فرم به صورت پیش‌فرض
 
             const id = $('#editId').val();
             const name = $('#editName').val();
@@ -218,12 +243,12 @@ session_start(); // شروع سشن
                     price: price
                 },
                 success: function(response) {
-                    alert(response.message); // Show success message
-                    loadMenu(); // Reload the menu
-                    hideEditForm(); // Hide the edit form
+                    alert(response.message); // نمایش پیام موفقیت
+                    loadMenu(); // بارگذاری مجدد منو
+                    hideEditForm(); // مخفی کردن فرم ویرایش
                 },
                 error: function(xhr) {
-                    alert(xhr.responseJSON.message || 'Failed to update food.');
+                    alert(xhr.responseJSON.message || 'خطا در ویرایش غذا.');
                 }
             });
         });

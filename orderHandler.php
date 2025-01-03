@@ -1,53 +1,87 @@
 <?php
+
 include("dbConection.php");
 
-if (isset($_POST['orders']) && isset($_POST['userId'])) {
 
-    // Decode the JSON-encoded orders from the client side
-    $orders = json_decode($_POST['orders'], true);
-    $userId = $_POST['userId']; // Ensure the userId is passed correctly
 
-    // Debug: Log received data for validation
-    error_log("Received Orders: " . print_r($orders, true));
-    error_log("User ID: " . $userId);
+class OrderHandler {
+    private $pdo;
 
-    // Check if orders is an array and contains data
-    if (is_array($orders) && !empty($orders)) {
+    // Constructor receives PDO instance from the Database class
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    // Process orders method
+    public function processOrders($orders, $userId) {
+        if (!is_array($orders) || empty($orders)) {
+            throw new Exception('Invalid or empty orders data.');
+        }
+
+        $this->pdo->beginTransaction();
         try {
-            $pdo->beginTransaction();
+            // Generate a unique order number
+            $orderNumber = uniqid('ORD');
 
             // Prepare the query for inserting orders
-            $query = "INSERT INTO orders (USER_ID, FOOD_ID, FOOD_NAME, QUANTITY, PRICE) VALUES (:user_id, :food_id, :food_name, :quantity, :price)";
-            $stmt = $pdo->prepare($query);
+            $query = "INSERT INTO orders (ORDER_NUMBER, USER_ID, FOOD_ID, FOOD_NAME, QUANTITY, PRICE) 
+                      VALUES (:order_number, :user_id, :food_id, :food_name, :quantity, :price)";
+            $stmt = $this->pdo->prepare($query);
 
             foreach ($orders as $order) {
-                // Ensure the order contains the necessary data
-                if (isset($order['foodID'], $order['foodName'], $order['quantity'], $order['price'], $order['userId'])) {
-                    // Insert order into the database
-                    $stmt->execute([
-                        ':user_id' => $order['userId'],          // User ID
-                        ':food_id' => $order['foodID'],          // Food ID
-                        ':food_name' => $order['foodName'],      // Food Name
-                        ':quantity' => $order['quantity'],       // Quantity
-                        ':price' => $order['price']              // Price
-                    ]);
-                } else {
+                if (!isset($order['foodID'], $order['foodName'], $order['quantity'], $order['price'])) {
                     throw new Exception('Missing data in order.');
                 }
+
+                // Execute the query for each order
+                $stmt->execute([
+                    ':order_number' => $orderNumber,
+                    ':user_id'      => $userId,
+                    ':food_id'      => $order['foodID'],
+                    ':food_name'    => $order['foodName'],
+                    ':quantity'     => $order['quantity'],
+                    ':price'        => $order['price']
+                ]);
             }
 
-            $pdo->commit();  // Commit the transaction
+            // Commit the transaction
+            $this->pdo->commit();
 
-            echo json_encode(['message' => 'Orders added successfully.']);
+            // Return the order number and success message
+            return ['message' => 'Orders added successfully.', 'orderNumber' => $orderNumber];
         } catch (Exception $e) {
-            // Rollback the transaction on error
-            $pdo->rollBack();
-            echo json_encode(['message' => 'Error: ' . $e->getMessage()]);
+            // Rollback the transaction in case of an error
+            $this->pdo->rollBack();
+            throw $e;
         }
-    } else {
-        echo json_encode(['message' => 'Invalid or empty orders data.']);
     }
-} else {
-    echo json_encode(['message' => 'Missing orders or userId']);
 }
+
+
+try {
+    // Initialize the Database
+    $db = new Database();
+    $pdo = $db->getConnection(); // Get PDO instance
+
+    // Initialize the OrderHandler
+    $orderHandler = new OrderHandler($pdo);
+
+    // Check for POST data
+    if (isset($_POST['orders']) && isset($_POST['userId'])) {
+        $orders = json_decode($_POST['orders'], true); // Decode the orders
+        $userId = $_POST['userId']; // User ID from POST data
+
+        // Process orders
+        $result = $orderHandler->processOrders($orders, $userId);
+
+        // Send a JSON response
+        echo json_encode($result);
+    } else {
+        echo json_encode(['message' => 'Missing orders or userId']);
+    }
+} catch (Exception $e) {
+    echo json_encode(['message' => 'Error: ' . $e->getMessage()]);
+}
+
+
 ?>

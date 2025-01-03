@@ -1,4 +1,60 @@
 <?php
+class UserLogin
+{
+    private $pdo;
+    private $errorMessage;
+
+    // Constructor to initialize PDO connection
+    public function __construct($pdo)
+    {
+        $this->pdo = $pdo;
+    }
+
+    // Handle login logic
+    public function login($email, $password)
+    {
+        // Validate the fields
+        if (empty($email) || empty($password)) {
+            $this->errorMessage = "لطفا فیلد ها را تکمیل کنید";
+            return false;
+        }
+
+        // Prepare and execute the query to find the user by email
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = :email");
+        $stmt->execute(['email' => $email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user) {
+            if (password_verify($password, $user['PASSWORD'])) {
+                // Set cookies for 30 days
+                setcookie('user_email', $user['EMAIL'], time() + (30 * 24 * 60 * 60), "/");
+                setcookie('user_id', $user['ID'], time() + (30 * 24 * 60 * 60), "/");
+
+                // Set session
+                $_SESSION['user'] = [
+                    'email' => $user['EMAIL'],
+                    'role' => $user['ROLE'],
+                    'user_id' => $user['ID']
+                ];
+
+                return true; // Successfully logged in
+            } else {
+                $this->errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
+            }
+        } else {
+            $this->errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
+        }
+
+        return false; // Login failed
+    }
+
+    // Getter for error message
+    public function getErrorMessage()
+    {
+        return $this->errorMessage;
+    }
+}
+
 session_start();
 
 // If the user is already logged in, redirect to the dashboard
@@ -7,48 +63,23 @@ if (isset($_SESSION['user'])) {
     exit;
 }
 
-
 include("dbConection.php");
 
+$userLogin = new UserLogin($pdo);
+
+// Check if the form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = @$_POST['email'];
     $password = @$_POST['password'];
 
-    // Validate the fields
-    if (empty($email) || empty($password)) {
-        $errorMessage = "لطفا فیلد ها را تکمیل کنید";
-    }
-    
-    else {
-        // Prepare and execute the query to find the user by email
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email");
-        $stmt->execute(['email' => $email]);
-
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($user) {
-            if (password_verify($password, $user['PASSWORD'])) {
-                // تنظیم کوکی (ماندگاری برای 30 روز)
-                setcookie('user_email', $user['EMAIL'], time() + (30 * 24 * 60 * 60), "/"); // مسیر "/" برای دسترسی در کل سایت
-                setcookie('user_id', $user['ID'], time() + (30 * 24 * 60 * 60), "/");
-            
-                // تنظیم سشن
-                $_SESSION['user'] = [
-                    'email' => $user['EMAIL'],
-                    'role' => $user['ROLE'],
-                    'user_id' => $user['ID']
-                ];
-            
-                // انتقال به داشبورد
-                header('Location: dashborad.php');
-                exit;
-            }
-             else {
-                $errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
-            }
-        } else {
-            $errorMessage = "خطا نام کاریری یا پسوورد اشتباه است";
-        }
+    // Attempt to log in
+    if ($userLogin->login($email, $password)) {
+        // Redirect to dashboard if login is successful
+        header('Location: dashborad.php');
+        exit;
+    } else {
+        // Get error message if login fails
+        $errorMessage = $userLogin->getErrorMessage();
     }
 }
 ?>

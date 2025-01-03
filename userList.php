@@ -1,24 +1,10 @@
-<?php
-session_start(); // شروع سشن
-?>
-
-<?php if (isset($_SESSION['user'])): ?>
-    <!-- نمایش دکمه خروج اگر کاربر وارد شده باشد -->
-    <a href="logout.php">
-        <button type="button">خروج</button>
-    </a>
-<?php endif; ?>
-
-
-
-
 <!DOCTYPE html>
 <html lang="fa">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="./lib/jquery-3.6.0.min.js"></script>
     <style>
         table {
             margin: 20px auto;
@@ -40,7 +26,7 @@ session_start(); // شروع سشن
         <thead>
             <tr>
                 <th>کد</th>
-                <th>نام </th>
+                <th>نام</th>
                 <th>نام خانوادگی</th>
                 <th>ایمیل</th>
                 <th>حذف</th>
@@ -61,110 +47,114 @@ session_start(); // شروع سشن
         <button type="submit">ویرایش</button>
     </form>
 
-
     <script>
-        loadUsers();
+        
+            loadUsers();
 
-        function loadUsers() {
-            $.ajax({
-                url: 'userHandler.php',
-                method: 'POST',
-                dataType: 'json',
-                data: {
-                    action: 'loadUsers'
-                },
-                success: function(users) {
-                    const tableBody = $('#userTable tbody');
-                    tableBody.empty();
-                    users.forEach(function(user) {
-                        tableBody.append(`
-                            <tr>
-                                <td>${user.ID}</td>
-                                <td>${user.F_NAME}</td>
-                                <td>${user.L_NAME}</td>
-                                <td>${user.EMAIL}</td>
-                                <td><button onclick="deleteUser(${user.ID})">حذف</button></td>
-                                <td><button onclick="editUser(${user.ID})">ویرایش</button></td>
-                            </tr>
-                        `);
-                    });
-                },
-                error: function(xhr) {
-                    alert('Failed to load users.');
-                }
+    function loadUsers() {
+    $.ajax({
+    url: 'userHandler.php',
+    method: 'POST',
+    dataType: 'json',
+    data: {
+        action: 'loadUsers'
+    },
+    success: function(users) {
+
+        const tableBody = $('#userTable tbody');
+        tableBody.empty();
+        if (users && users.length > 0) {
+            users.forEach(function(user) {
+                tableBody.append(`
+                    <tr>
+                        <td>${user.ID}</td>
+                        <td>${user.F_NAME}</td>
+                        <td>${user.L_NAME}</td>
+                        <td>${user.EMAIL}</td>
+                        <td><button onclick="deleteUser(${user.ID})">حذف</button></td>
+                        <td><button onclick="editUser(${user.ID})">ویرایش</button></td>
+                    </tr>
+                `);
             });
+        } else {
+            alert("No users found.");
         }
+    },
+    error: function(xhr, status, error) {
+        console.error("AJAX Error: ",  error);
+        alert('خطا در بارگذاری کاربران');
+    }
+});
 
-        function deleteUser(id) {
-            if (confirm("آیا این کاربر حذف شود?")) {
+            }
+
+            window.deleteUser = function (id) {
+                if (confirm("آیا این کاربر حذف شود؟")) {
+                    $.ajax({
+                        url: 'userHandler.php',
+                        method: 'POST',
+                        dataType: 'json',
+                        data: {
+                            action: 'delete',
+                            id: id
+                        },
+                        success: function (response) {
+                            alert(response.message);
+                            loadUsers();
+                        },
+                        error: function () {
+                            alert('خطا در حذف کاربر');
+                        }
+                    });
+                }
+            };
+
+            window.editUser = function (id) {
+                const row = $(`#userTable tr`).filter(function () {
+                    return $(this).find('td').first().text() == id;
+                });
+
+                const firstName = row.find('td:nth-child(2)').text();
+                const lastName = row.find('td:nth-child(3)').text();
+                const email = row.find('td:nth-child(4)').text();
+
+                $('#editId').val(id);
+                $('#editFirstName').val(firstName);
+                $('#editLastName').val(lastName);
+                $('#editEmail').val(email);
+
+                $('#editUserForm').show();
+            };
+
+            $('#editUserForm').on('submit', function (e) {
+                e.preventDefault();
+                const id = $('#editId').val();
+                const firstName = $('#editFirstName').val();
+                const lastName = $('#editLastName').val();
+                const email = $('#editEmail').val();
+
                 $.ajax({
                     url: 'userHandler.php',
                     method: 'POST',
                     dataType: 'json',
                     data: {
-                        action: 'delete',
-                        id: id
+                        action: 'edit',
+                        id: id,
+                        f_name: firstName,
+                        l_name: lastName,
+                        email: email
                     },
-                    success: function(response) {
+                    success: function (response) {
                         alert(response.message);
                         loadUsers();
+                        $('#editUserForm').hide();
                     },
-                    error: function(xhr) {
-                        alert('Failed to delete user.');
+                    error: function () {
+                        alert('خطا در ویرایش کاربر');
                     }
                 });
-            }
-        }
-
-        function editUser(id) {
-            // پیدا کردن ردیفی که دکمه ویرایش در آن کلیک شده است
-            const row = $(`#userTable tr`).filter(function() {
-                return $(this).find('td').first().text() == id; // تطبیق ID در ستون اول
             });
-
-            // استخراج مقادیر نام، نام خانوادگی و ایمیل از ردیف کلیک شده
-            const firstName = row.find('td:nth-child(2)').text(); // F_NAME
-            const lastName = row.find('td:nth-child(3)').text(); // L_NAME
-            const email = row.find('td:nth-child(4)').text(); // EMAIL
-
-            // پر کردن فرم ویرایش با این مقادیر
-            $('#editId').val(id);
-            $('#editFirstName').val(firstName);
-            $('#editLastName').val(lastName);
-            $('#editEmail').val(email);
-
-            // نمایش فرم ویرایش
-            $('#editUserForm').show();
-        }
-
-        $('#editUserForm').on('submit', function(e) {
-            e.preventDefault();
-            const id = $('#editId').val();
-            const firstName = $('#editFirstName').val(); // Changed to firstName
-            const lastName = $('#editLastName').val(); // Changed to lastName
-            const email = $('#editEmail').val();
-
-            $.ajax({
-                url: 'userHandler.php',
-                method: 'POST',
-                dataType: 'json',
-                data: {
-                    action: 'edit',
-                    id: id,
-                    f_name: firstName, // Ensure this matches server-side parameter
-                    l_name: lastName, // Ensure this matches server-side parameter
-                    email: email
-                },
-                success: function(response) {
-                    alert(response.message);
-                    loadUsers(); // Refresh users list
-                    $('#editUserForm').hide();
-                },
-                error: function(xhr) {
-                    alert('Failed to edit user.');
-                }
-            });
-        });
+    
     </script>
 </body>
 

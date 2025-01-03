@@ -95,6 +95,11 @@
         .link:hover {
             text-decoration: underline;
         }
+
+        a
+        {
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -137,4 +142,4 @@
 </div>
 
 </body>
-</ht
+</html>

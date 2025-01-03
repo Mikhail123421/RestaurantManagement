@@ -1,18 +1,14 @@
 <?php
 session_start(); 
 
-
-
 if (isset($_SESSION['user'])) {
-    echo " <a href='logout.php' class='btn btn-logout'>
+    echo " <a href='logout.php'>
+    <button class='btn btn-logout'>
             خروج
+            </button>
         </a>";
     $userId = $_SESSION['user']['user_id'];
-} 
-
-
-
-else {
+} else {
     $userId = null; 
 }
 ?>
@@ -23,11 +19,9 @@ else {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سفارش غذا</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="./lib/jquery-3.6.0.min.js"></script>
     <style>
-        body
-        {
+        body {
             text-align: center;
         }
         #orderTable {
@@ -41,26 +35,62 @@ else {
             text-align: center;
             border: 1px solid #ddd;
         }
+        form
+        {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        form input
+        {
+            width: 400px;
+            height: 30px;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        form select
+        {
+            width: 400px;
+            height: 30px;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+
+        .btn-logout {
+            background-color: #f44336;
+            color: white;
+            display: flex;
+          
+        }
+
+        a{
+            text-decoration: none;
+        }
+
+        .btn-logout:hover {
+            background-color: #e53935;
+        }
     </style>
 </head>
 
 <body>
-    <h1 style="text-align: center;">سفارش غذا</h1>
 
     <!-- Add the USER_ID to a hidden input field to use on the client side -->
     <input type="hidden" id="userId" value="<?php echo $userId; ?>">
 
-    <form id="orderForm">
+    <form id="orderForm" >
         <label for="food">انتخاب غذا:</label>
         <select id="food" name="food" required>
             <!-- لیست غذاها به صورت داینامیک بارگذاری می‌شود -->
-        </select>
-        <input type="number" id="quantity" name="quantity" placeholder="تعداد" required min="1">
-        <input type="number" id="price" name="price" placeholder="قیمت کل" readonly>
-        <button type="submit">ثبت سفارش</button>
+        </select></br>
+        <input type="number" id="quantity" name="quantity" placeholder="تعداد" required min="1"></br>
+        <input type="number" id="price" name="price" placeholder="قیمت کل" readonly></br>
+        <button type="submit">افزودن</button>
     </form>
 
-    <h2 style="text-align: center;">لیست سفارش‌ها</h2>
     <table id="orderTable">
         <thead>
             <tr>
@@ -74,15 +104,18 @@ else {
         <tbody>
             <!-- سفارش‌ها به صورت داینامیک بارگذاری می‌شود -->
         </tbody>
+        <h3>مجموع قیمت سفارش‌ها: <span id="totalPrice">0</span> تومان</h3>
+
     </table>
 
     <button id="finalizeOrderBtn">ثبت نهایی سفارش</button>
 
     <script>
         let orders = []; 
+        let orderNumberCounter = 1; // شمارنده برای شماره سفارشات
         const userId = $('#userId').val();
 
-        //1 Load food menu from the server
+        // 1. Load food menu from the server
         function loadMenu() {
             $.ajax({
                 url: 'foodHandler.php',
@@ -106,23 +139,29 @@ else {
 
         // Load orders into the table
         function loadOrders() {
-            const orderTableBody = $('#orderTable tbody');
-            orderTableBody.empty(); // Clear existing rows
+    const orderTableBody = $('#orderTable tbody');
+    orderTableBody.empty(); // Clear existing rows
+    let totalSum = 0; // Variable to hold the total price
 
-            orders.forEach(function(order, index) {
-                orderTableBody.append(`
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${order.food}</td>
-                        <td>${order.quantity}</td>
-                        <td>${order.price}</td>
-                        <td><button class="removeOrderBtn" data-index="${index}">حذف</button></td>
-                    </tr>
-                `);
-            });
-        }
+    orders.forEach(function(order, index) {
+        // Add the price of the current order to the total
+        totalSum += parseInt(order.price);
 
-  
+        orderTableBody.append(`
+            <tr>
+                <td>${index + 1}</td>
+                <td>${order.foodName}</td>
+                <td>${order.quantity}</td>
+                <td>${order.price}</td>
+                <td><button class="removeOrderBtn" data-index="${index}">حذف</button></td>
+            </tr>
+        `);
+    });
+
+    // Update the total price in the UI
+    $('#totalPrice').text(totalSum);
+}
+
 
         $('#orderForm').on('submit', function(event) {
             event.preventDefault();
@@ -152,8 +191,6 @@ else {
             loadOrders(); // Update the orders table view
         });
 
-
-
         // Finalize the order and send it to the server
         $('#finalizeOrderBtn').on('click', function() {
             if (orders.length === 0) {
@@ -181,11 +218,8 @@ else {
             });
         });
 
-
-
-
-            // Calculate the total price based on the selected food and quantity
-            function calculateTotal() {
+        // Calculate the total price based on the selected food and quantity
+        function calculateTotal() {
             const selectedFood = $('#food').find(':selected');
             const pricePerUnit = selectedFood.data('price');
             const quantity = parseInt($('#quantity').val()) || 0;
@@ -193,8 +227,8 @@ else {
             $('#price').val(totalPrice || 0);
         }
 
-      // Remove an order from the table
-      $(document).on('click', '.removeOrderBtn', function() {
+        // Remove an order from the table
+        $(document).on('click', '.removeOrderBtn', function() {
             const index = $(this).data('index');
             orders.splice(index, 1); // Remove from the orders array
             loadOrders(); // Update the table
